@@ -13,7 +13,7 @@
 # make all FILE_TST=test_varXXX.c  FILE_REF=baseline.c CFLAGS="-O3"
 
 # modify or pass as param to make
-FILE_TST?=test_var000.c
+FILE_TST?=test_var001.c
 # Once you have a correct and faster variant you might want to replace this.
 FILE_REF?=baseline.c
 
@@ -60,12 +60,12 @@ NAME_MODEL_REF=compute_model_ref # leave this alone
 NAME_MODEL_TST=compute_model_tst # also leave this alone
 
 MIN = 64
-MAX = 256
-STEP = 16
+MAX = 384
+STEP = 64
 
 
 
-all: measure-performance measure-verifier # build-verifier build-timer
+all: measure-verifier  measure-performance plot # build-verifier build-timer
 
 
 build-verifier: utils.o
@@ -74,6 +74,7 @@ build-verifier: utils.o
 	gcc $(CFLAGS_DEBUG) -DCOMPUTE_NAME=$(NAME_TST) -DCOMPUTE_MODEL_NAME=$(NAME_MODEL_TST) -c $(FILE_TST) -o $(OBJ_FILE_TST)
 	gcc $(CFLAGS_DEBUG) -lm $(OBJ_FILE_REF) $(OBJ_FILE_TST) verifier.o utils.o -o ./run_verifier.x
 
+# NOTE : run this first if you run a make clean
 utils.o: utils.c
 	gcc $(CFLAGS_DEBUG)  -c utils.c -o utils.o
 

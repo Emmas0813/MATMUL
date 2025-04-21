@@ -68,10 +68,21 @@ float compute_pair_wise_diff(int m, int n, int rs, int cs, float *a, float *b, f
 
 	float res = 0.0f;
 
-	if(fabs(sum) < ERROR_THRESHOLD)
-	  res = fabs(diff);
-	else
-	  res = 2*diff/sum;
+    if (diff < ABS_TOLERANCE) {
+        res = diff; // very small difference, just use absolute
+    }
+    else if (fabs(sum) < ERROR_THRESHOLD) {
+        res = diff; // sum is near 0, fallback to absolute error
+    }
+    else {
+        res = 2 * diff / sum; // use relative error
+    }
+
+
+	// if(fabs(sum) < ERROR_THRESHOLD)
+	//   res = fabs(diff);
+	// else
+	//   res = 2*diff/sum;
 
 	/*
 	if(res > ERROR_THRESHOLD)

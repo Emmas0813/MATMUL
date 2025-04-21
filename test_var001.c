@@ -1,161 +1,101 @@
 /*
-  This is a simple implementation of an unoptimized sort.
+  Simple matrix multiplication implementation: C = A × B
 
-  - richard.m.veras@ou.edu
+  This implementation adds blocking
 
+  - Modified for clarity and minimalism
 */
-
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "instruments.h"
+#include "COMPUTE.h"
 
 #ifndef COMPUTE_NAME
 #define COMPUTE_NAME baseline
 #endif
 
-#ifndef COMPUTE_FLOP_NAME
-#define COMPUTE_FLOP_NAME baseline_flop
+#ifndef COMPUTE_MODEL_NAME
+#define COMPUTE_MODEL_NAME baseline_model
 #endif
 
-#ifndef COMPUTE_BYTES_NAME
-#define COMPUTE_BYTES_NAME baseline_bytes
-#endif
+#define BM 64
+#define BN 64
+#define BK 64
 
-// Dimensions of the Filter
-static const int R = 4;
-static const int Q = 3;
-
-/* Weights of the Filter.
- - We are going to linearize this 2d array in row major order.
- - The following code illustrates the layout of the data
-   and the relationship between a 2D array and its linearized
-   counterpart.
-
-  int NUMROWS=2;
-  int NUMROWS=3;
- 
-  Arr2D[NUMROWS][NUMCOLS]=
-                       // j= 0  1  2
-                           {{a, b, c}, //  <-- i = 0
-                            {d, e, f}}; // <-- i = 1
-  Arr1D[NUMROWS*NUMCOLS];
-
-  for( i=0; i<NUMROWS; ++i)
-    for( j=0; j<NUMCOLS; ++j)
-      Arr1D[i*NUMCOLS+j] = Arr2D[i][j]
-
- 
-      //   Arr1D[NUMROWS*NUMCOLS] |--->
-      //         j=0  1  2
-      //          {a, b, d,  <-- i=0
-      //	   e, f, g   <-- i=1
-
-*/
-
-//weights[(Q)][(R)]
-//weights[(Q)*(R)]
-static float weights[] =
-  //r=0    1     2     3
-  {-1.1, -1.1,  1.2, -2.1,  // q=0
-   -1.1, -2.1, -1.2,  2.2,  // q=1
-   -2.1,  0.1,  0.2,  1.2}; // q=2
-
-
-
-
-double COMPUTE_FLOP_NAME( int m0, int n0 )
+// Performance model: estimate FLOPs and memory traffic
+void COMPUTE_MODEL_NAME(op_model_t *model,
+                        op_params_t *op_params,
+                        op_inputs_t *inputs,
+                        op_outputs_t *outputs,
+                        op_inouts_t *inouts,
+                        hwctx_t *hwctx)
 {
-  return 2*m0*n0*(Q)*(R);
+    int m = op_params->m;
+    int n = op_params->n;
+    int k = op_params->k;
+
+    model->flops = 2.0 * m * n * k;
+    model->bytes = sizeof(float) * (m * k + k * n + m * n); // A, B, and C
 }
 
-/*
-  1 read           for x vector   (m*n)
-  1 read + 1 write for y vector 2*(m*n)
-  1 read for the weights (Q*R)
-*/
-double COMPUTE_BYTES_NAME( int m0, int n0 )
+// Actual matrix multiplication
+
+void COMPUTE_NAME(op_params_t *op_params,
+                  op_inputs_t *inputs,
+                  op_outputs_t *outputs,
+                  op_inouts_t *inouts,
+                  hwctx_t *hwctx)
 {
-  return (3*(m0*n0)+ ((Q)*(R)))*sizeof(float);
-}
+    int m = op_params->m;
+    int n = op_params->n;
+    int k = op_params->k;
 
+    int rs_a = op_params->rs_a;
+    int cs_a = op_params->cs_a;
+    int rs_b = op_params->rs_b;
+    int cs_b = op_params->cs_b;
+    int rs_c = op_params->rs_c;
+    int cs_c = op_params->cs_c;
 
-/*
-  X and Y are linearized as 1D arrays in memory
-  with m0 number of rows and n0 number of columns.
-  They are row major order, which means that elements
-  on the same row, but adjacent columns are next to
-  each other in memory.
+    float *A = inputs->A;
+    float *B = inputs->B;
+    float *C = outputs->C;
 
-  m0 == 4; 0 <= i < m0
-  n0 == 7; 0 <= j < n0
-  
-  y[m0*n0]
-  x[m0*n0]
-  
+    BEGIN_INSTRUMENTATION;
 
- Logical view of X or Y 
-   \ j=0 1 2 3 4 5 6 n0
-    \ _______________
-i= 0 | a b c d e f g
- = 1 | h i j k l m n
- = 2 | o p q r s t u
- = 3 | v q x y z A B
-   m0
-
-Indices to Addresses
-   
- i | j | &x[i*n0+j]
- __________________
- 0 | 0 | &x[0]
- 0 | 1 | &x[1]
- 0 | 6 | &x[6]
- 1 | 0 | &x[7]
- 2 | 0 | &x[14]
- 2 | 1 | &x[15]
- 3 | 6 | &x[27]
-
- 
-
-  Layout in memory
- 
- Addr   | Value
- ______________
- &x[0]  | a
- &x[1]  | b
- &x[3]  | c
- &x[4]  | d
- &x[5]  | e
- &x[6]  | f
- &x[7]  | g
- &x[8]  | h
- &x[14] | o
- &x[15] | p
- &x[27] | B
-  
- */
-
-
-
-
-void COMPUTE_NAME( int m0,
-		   int n0,
-		   float *x,
-		   float *y )
-
+    for (int i0 = 0; i0 < m; i0 += BM)
 {
-  BEGIN_INSTRUMENTATION;
-  for( int i0 = 0; i0 < m0; ++i0 )
+    for (int j0 = 0; j0 < n; j0 += BN)
     {
-      float *addr_y = y;            // get base address of y
-      float *y_i0   = y+i0;         // increment y by i0
-      float rd_y_i0 = *y_i0;        // read the value at y[i0]
-      float scale_y = rd_y_i0*2;    // multiply by 2
-      float add_1_y = scale_y + 1;  // add 1
-      *y_i0 = add_1_y;              // write back
-    }
-  END_INSTRUMENTATION;
-  
+        for (int p0 = 0; p0 < k; p0 += BK)
+        {
+            int i_max = (i0 + BM > m) ? m : i0 + BM;
+            int j_max = (j0 + BN > n) ? n : j0 + BN;
+            int p_max = (p0 + BK > k) ? k : p0 + BK;
 
+            for (int i = i0; i < i_max; ++i)
+            {
+                for (int j = j0; j < j_max; ++j)
+                {
+                    float sum = 0.0f;
+                    for (int p = p0; p < p_max; ++p)
+                    {
+                        float a_val = A[i * rs_a + p * cs_a];
+                        float b_val = B[p * rs_b + j * cs_b];
+                        sum += a_val * b_val;
+                    }
+
+                    int c_idx = i * rs_c + j * cs_c;
+                  
+                    C[c_idx] += sum;
+                }
+            }
+        }
+    }
+}
+
+
+    END_INSTRUMENTATION;
 }
