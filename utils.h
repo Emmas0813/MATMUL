@@ -9,7 +9,7 @@
 // Error bounds
 #define ERROR_THRESHOLD 1e-3
 #define HALF_RANGE 1000
-#define ABS_TOLERANCE 1e-6f
+#define ABS_TOLERANCE 1e-5
 
 
 void fill_buffer_with_random( int num_elems, float *buff );

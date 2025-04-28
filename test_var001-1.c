@@ -1,7 +1,7 @@
 /*
   Simple matrix multiplication implementation: C = A × B
 
-  This implementation adds blocking
+  This implementation uses a larger size block size but uses test_var001.c code otherwise
 
   - Modified for clarity and minimalism
 */
@@ -20,9 +20,9 @@
 #define COMPUTE_MODEL_NAME baseline_model
 #endif
 
-#define BM 32
-#define BN 32
-#define BK 32
+#define BM 16
+#define BN 16
+#define BK 16
 
 // Performance model: estimate FLOPs and memory traffic
 void COMPUTE_MODEL_NAME(op_model_t *model,
@@ -69,6 +69,7 @@ void COMPUTE_NAME(op_params_t *op_params,
             C[i * rs_c + j * cs_c] = 0.0f;
         }
     }
+
 
     BEGIN_INSTRUMENTATION;
 

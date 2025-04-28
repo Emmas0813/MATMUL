@@ -13,7 +13,7 @@
 # make all FILE_TST=test_varXXX.c  FILE_REF=baseline.c CFLAGS="-O3"
 
 # modify or pass as param to make
-FILE_TST?=test_var001.c
+FILE_TST?=test_var002.c
 # Once you have a correct and faster variant you might want to replace this.
 FILE_REF?=baseline.c
 
@@ -60,12 +60,12 @@ NAME_MODEL_REF=compute_model_ref # leave this alone
 NAME_MODEL_TST=compute_model_tst # also leave this alone
 
 MIN = 64
-MAX = 384
+MAX = 1024
 STEP = 64
 
 
 
-all: measure-verifier  measure-performance plot # build-verifier build-timer
+all:  measure-verifier measure-performance plot #  build-verifier build-timer
 
 
 build-verifier: utils.o

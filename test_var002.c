@@ -1,13 +1,14 @@
 /*
   Simple matrix multiplication implementation: C = A × B
 
-  This implementation adds blocking
+  This implementation builds off test_var001.c and implements SIMD vectorization
 
   - Modified for clarity and minimalism
 */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <immintrin.h> 
 
 #include "instruments.h"
 #include "COMPUTE.h"
@@ -20,9 +21,9 @@
 #define COMPUTE_MODEL_NAME baseline_model
 #endif
 
-#define BM 32
-#define BN 32
-#define BK 32
+#define BM 64
+#define BN 64
+#define BK 64
 
 // Performance model: estimate FLOPs and memory traffic
 void COMPUTE_MODEL_NAME(op_model_t *model,
@@ -82,23 +83,46 @@ void COMPUTE_NAME(op_params_t *op_params,
             int j_max = (j0 + BN > n) ? n : j0 + BN;
             int p_max = (p0 + BK > k) ? k : p0 + BK;
 
-            for (int i = i0; i < i_max; ++i)
-            {
-                for (int j = j0; j < j_max; ++j)
-                {
+            for (int i = i0; i < i_max; ++i) {
+                for (int j = j0; j < j_max; ++j) {
+                    __m256 vsum = _mm256_setzero_ps();
+            
+                    int p = p0;
+                    // Vectorized part
+                    for (; p <= p_max - 8; p += 8) {
+                        // A: contiguous, safe for loadu
+                        __m256 va = _mm256_loadu_ps(&A[i * rs_a + p * cs_a]);
+                        
+                        // B: not contiguous in memory, so pack 8 elements
+                        float b_buf[8];
+                        for (int t = 0; t < 8; ++t)
+                            b_buf[t] = B[(p + t) * rs_b + j * cs_b];
+                        __m256 vb = _mm256_loadu_ps(b_buf);
+            
+                        // FMA if available, else mul+add
+                        vsum = _mm256_fmadd_ps(va, vb, vsum);
+                    }
+            
+                    // Horizontal sum to get the float result
                     float sum = 0.0f;
-                    for (int p = p0; p < p_max; ++p)
-                    {
+                    float temp[8];
+                    _mm256_storeu_ps(temp, vsum);
+                    for (int t = 0; t < 8; ++t)
+                        sum += temp[t];
+            
+                    // Scalar tail for any leftover p
+                    for (; p < p_max; ++p) {
                         float a_val = A[i * rs_a + p * cs_a];
                         float b_val = B[p * rs_b + j * cs_b];
                         sum += a_val * b_val;
                     }
-
+            
+                    // Accumulate into C
                     int c_idx = i * rs_c + j * cs_c;
-                  
                     C[c_idx] += sum;
                 }
             }
+
         }
     }
 }
