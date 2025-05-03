@@ -13,7 +13,7 @@
 # make all FILE_TST=test_varXXX.c  FILE_REF=baseline.c CFLAGS="-O3"
 
 # modify or pass as param to make
-FILE_TST?=test_var002.c
+FILE_TST?=test_var003.c
 # Once you have a correct and faster variant you might want to replace this.
 FILE_REF?=baseline.c
 
@@ -65,7 +65,7 @@ STEP = 64
 
 
 
-all:  measure-verifier measure-performance plot #  build-verifier build-timer
+all:  measure-verifier measure-performance plot # build-verifier build-timer
 
 
 build-verifier: utils.o
@@ -215,5 +215,5 @@ clean-results:
 	rm -f $(MCA_FILE_TST) $(MCA_ASM_FILE_TST) $(OSACA_FILE_TST) $(OSACA_ASM_FILE_TST) $(OBJDUMP_ANNOTATED_FILE_TST) $(OBJDUMP_FILE_TST) $(OBJ_FILE_TST) $(OBJ_FILE_REF) $(CACHEGRIND_FILE_TST) $(CSV_FILE_TST) $(RES_CSV_FILE_TST) $(PNG_FILE_TST) $(OBJ_FILE_DBG_TST) $(OSACA_DOT_FILE_TST)
 
 clean:
-	rm -f *.o *.x *~ *.s
+	rm -f *.o *.x *~ *.s *.csv
 	rm -rf venv
